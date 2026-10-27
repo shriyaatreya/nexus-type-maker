@@ -1160,9 +1160,16 @@ for (const b of document.querySelectorAll('[data-clip]')) {
 const activeLayer = () => state.layers.find((l) => l.id === state.activeLayer) ?? state.layers[0];
 let nextLayerId = 2;
 
+// Picking a pixel shape or layer means you're about to paint: switch to
+// the Pixel brush (also out of the eraser).
+function useBrush() {
+  if (state.tool !== 'brush' || state.eraser) setTool('brush');
+}
+
 for (const b of document.querySelectorAll('[data-shape]')) {
   b.addEventListener('click', () => {
     for (const l of state.editAll ? state.layers : [activeLayer()]) l.shape = b.dataset.shape;
+    useBrush();
     syncPixelControls();
     requestRender();
   });
@@ -1186,6 +1193,7 @@ function renderLayers() {
     </button>`;
   all.querySelector('.layer-select').addEventListener('click', () => {
     state.editAll = true;
+    useBrush();
     syncPixelControls();
   });
   list.append(all);
@@ -1213,6 +1221,7 @@ function renderLayers() {
     row.querySelector('.layer-select').addEventListener('click', () => {
       state.activeLayer = layer.id;
       state.editAll = false;
+      useBrush();
       syncPixelControls();
     });
     row.querySelector('.layer-select').addEventListener('dblclick', () => renameLayer(row, layer));
