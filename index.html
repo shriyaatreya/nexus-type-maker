@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nexus Type</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 rx=%273%27/%3E%3Cpath fill=%27%23fff%27 d=%27M3 4h2v6H3zM5 10h2v2H5zM7 6h2v4H7zM9 10h2v2H9zM11 4h2v6h-2z%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script src="vendor/opentype.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <header class="brand">
+        <img src="assets/tedx-logo.png" alt="TEDx UTAustin" class="logo">
+      </header>
+
+      <section class="panel">
+        <h2>Canvas</h2>
+        <select class="select" id="art-preset" aria-label="Canvas preset"></select>
+        <div class="size-row">
+          <label class="field">
+            <span class="field-prefix">W</span>
+            <input type="number" id="art-w" min="0" aria-label="Width">
+            <span class="field-suffix art-unit">px</span>
+          </label>
+          <button type="button" class="icon-button" id="art-swap" aria-label="Swap width and height" title="Swap width and height">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="m17 20 4-4-4-4"/><path d="M21 16H7"/></svg>
+          </button>
+          <label class="field">
+            <span class="field-prefix">H</span>
+            <input type="number" id="art-h" min="0" aria-label="Height">
+            <span class="field-suffix art-unit">px</span>
+          </label>
+        </div>
+        <div class="unit-row">
+          <div class="segmented" role="radiogroup" aria-label="Units">
+            <button type="button" role="radio" data-unit="px">Pixels</button>
+            <button type="button" role="radio" data-unit="in">Inches</button>
+          </div>
+          <label class="field field-dpi" id="art-dpi-field" hidden>
+            <input type="number" id="art-dpi" min="18" max="1200" step="1" aria-label="Resolution">
+            <span class="field-suffix">DPI</span>
+          </label>
+        </div>
+        <p class="note" id="art-px-note"></p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Text</h2>
+          <button type="button" class="link-button" id="add-box" title="Or double-click empty canvas">+ Add text box</button>
+        </div>
+        <textarea id="text" rows="2" spellcheck="false" aria-label="Text"></textarea>
+        <div class="style-row" role="group" aria-label="Text style">
+          <button type="button" class="style-toggle" data-style="bold" title="Bold" aria-label="Bold"><b>B</b></button>
+          <button type="button" class="style-toggle" data-style="italic" title="Italic" aria-label="Italic"><i style="font-family: Georgia, serif">I</i></button>
+          <button type="button" class="style-toggle" data-style="underline" title="Underline" aria-label="Underline"><u>U</u></button>
+          <button type="button" class="style-toggle style-toggle-wide" data-style="outline" title="Outline only (no fill)">Outline</button>
+        </div>
+        <label class="slider">
+          <span class="slider-row"><span>Font size</span><output id="size-out"></output></span>
+          <input type="range" id="size" min="8" max="900" step="1">
+        </label>
+        <label class="slider">
+          <span class="slider-row"><span>Letter spacing</span><output id="tracking-out"></output></span>
+          <input type="range" id="tracking" min="-200" max="600" step="5">
+        </label>
+        <label class="slider">
+          <span class="slider-row"><span>Line height</span><output id="lineHeight-out"></output></span>
+          <input type="range" id="lineHeight" min="0.5" max="2.5" step="0.01">
+        </label>
+        <label class="slider">
+          <span class="slider-row"><span>Stroke width</span><output id="stroke-out"></output></span>
+          <input type="range" id="stroke" min="0" max="120" step="1">
+        </label>
+      </section>
+
+      <section class="panel">
+        <h2>Font</h2>
+        <div class="font-select" id="font-select">
+          <button type="button" class="font-current" id="font-current" aria-haspopup="listbox" aria-expanded="false">
+            <span class="font-current-name" id="font-current-name"></span>
+            <svg class="chevron" width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+          </button>
+          <div class="font-menu" id="font-menu" hidden>
+            <input type="search" class="font-search" id="font-search" placeholder="Search fonts" aria-label="Search fonts" autocomplete="off">
+            <ul class="font-list" id="font-list" role="listbox"></ul>
+          </div>
+        </div>
+        <p class="hint">Select letters on the canvas to change just those.</p>
+        <label class="button-link">
+          <input type="file" id="font-upload" accept=".ttf,.otf" hidden>
+          Upload .ttf / .otf
+        </label>
+      </section>
+
+      <section class="panel">
+        <h2>Transform</h2>
+        <div class="segmented segmented-grid" role="radiogroup" aria-label="Warp">
+          <button type="button" role="radio" data-warp="none">None</button>
+          <button type="button" role="radio" data-warp="arc">Arc</button>
+          <button type="button" role="radio" data-warp="wave">Wave</button>
+          <button type="button" role="radio" data-warp="bulge">Bulge</button>
+          <button type="button" role="radio" data-warp="distort">Distort</button>
+        </div>
+        <label class="slider" id="warp-amount-row">
+          <span class="slider-row"><span>Amount</span><output id="warpAmount-out"></output></span>
+          <input type="range" id="warpAmount" min="-100" max="100" step="1">
+        </label>
+        <label class="slider" id="warp-freq-row">
+          <span class="slider-row"><span>Frequency</span><output id="warpFreq-out"></output></span>
+          <input type="range" id="warpFreq" min="0" max="100" step="1">
+        </label>
+        <button type="button" class="button" id="reset-pulls" title="Remove Pull tool distortion from this text box">Reset pull distortion</button>
+      </section>
+
+      <section class="panel">
+        <h2>Pixel brush</h2>
+        <div class="layers-head">
+          <span>Layers</span>
+          <button type="button" class="link-button" id="add-layer" title="Add a layer with a different pixel shape">+ Add layer</button>
+        </div>
+        <ul class="layer-list" id="layer-list"></ul>
+        <span class="sub-label">Editing · <strong id="pixel-scope">All layers</strong></span>
+        <div class="shape-row" role="radiogroup" aria-label="Pixel shape">
+          <button type="button" role="radio" class="shape-button" data-shape="square" title="Squares"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12"/></svg></button>
+          <button type="button" role="radio" class="shape-button" data-shape="circle" title="Dots"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/></svg></button>
+          <button type="button" role="radio" class="shape-button" data-shape="ring" title="Rings"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 1.5a6.5 6.5 0 1 1 0 13a6.5 6.5 0 1 1 0-13zM8 5a3 3 0 1 0 0 6a3 3 0 1 0 0-6z"/></svg></button>
+          <button type="button" role="radio" class="shape-button" data-shape="diamond" title="Diamonds"><svg viewBox="0 0 16 16"><path d="M8 1l7 7-7 7-7-7z"/></svg></button>
+          <button type="button" role="radio" class="shape-button" data-shape="x" title="Crosses (×)"><svg viewBox="0 0 16 16"><path d="M3.3 1.9 8 6.6l4.7-4.7 1.4 1.4L9.4 8l4.7 4.7-1.4 1.4L8 9.4l-4.7 4.7-1.4-1.4L6.6 8 1.9 3.3z"/></svg></button>
+          <button type="button" role="radio" class="shape-button" data-shape="plus" title="Plus signs"><svg viewBox="0 0 16 16"><path d="M6 1.5h4V6h4.5v4H10v4.5H6V10H1.5V6H6z"/></svg></button>
+        </div>
+        <label class="slider">
+          <span class="slider-row"><span>Pixel size</span><output id="pixelSize-out"></output></span>
+          <input type="range" id="pixelSize" min="4" max="160" step="1">
+        </label>
+        <label class="slider" title="How much of a block the letter must cover to fill it. Heavier = chunkier, connected blocks.">
+          <span class="slider-row"><span>Pixel weight</span><output id="pixelWeight-out"></output></span>
+          <input type="range" id="pixelWeight" min="0" max="100" step="1">
+        </label>
+        <label class="slider">
+          <span class="slider-row"><span>Brush size</span><output id="brushSize-out"></output></span>
+          <input type="range" id="brushSize" min="8" max="600" step="1">
+        </label>
+        <label class="slider">
+          <span class="slider-row"><span>Brush softness</span><output id="softness-out"></output></span>
+          <input type="range" id="softness" min="0" max="100" step="1">
+        </label>
+        <label class="slider" title="Softens everything and melts pixels and letters together">
+          <span class="slider-row"><span>Bleed</span><output id="bleed-out"></output></span>
+          <input type="range" id="bleed" min="0" max="100" step="1">
+        </label>
+        <label class="slider" title="Slides every painted area — animate it to move pixels across the letters">
+          <span class="slider-row"><span>Shift X</span><output id="shiftX-out"></output></span>
+          <input type="range" id="shiftX" min="-800" max="800" step="1">
+        </label>
+        <label class="slider">
+          <span class="slider-row"><span>Shift Y</span><output id="shiftY-out"></output></span>
+          <input type="range" id="shiftY" min="-500" max="500" step="1">
+        </label>
+        <div class="segmented" role="radiogroup" aria-label="Paint mode">
+          <button type="button" role="radio" data-clip="letters">Clip to letters</button>
+          <button type="button" role="radio" data-clip="free">Free paint</button>
+        </div>
+        <button type="button" class="button" id="clear-pixels">Clear pixels</button>
+      </section>
+
+      <section class="panel">
+        <h2>Color</h2>
+        <div class="color-picker" id="color-picker"></div>
+        <button type="button" class="button" id="invert">Invert colors</button>
+      </section>
+
+      <section class="panel">
+        <h2>Export</h2>
+        <div class="segmented segmented-4" role="radiogroup" aria-label="Format">
+          <button type="button" role="radio" data-format="png">PNG</button>
+          <button type="button" role="radio" data-format="svg">SVG</button>
+          <button type="button" role="radio" data-format="gif">GIF</button>
+          <button type="button" role="radio" data-format="mp4">MP4</button>
+        </div>
+        <div class="option-row" id="export-scale-row">
+          <span>Scale</span>
+          <div class="segmented segmented-compact" role="radiogroup" aria-label="Scale">
+            <button type="button" role="radio" data-scale="1">1×</button>
+            <button type="button" role="radio" data-scale="2">2×</button>
+            <button type="button" role="radio" data-scale="4">4×</button>
+          </div>
+        </div>
+        <div class="export-gif" id="export-gif-options">
+          <label class="slider">
+            <span class="slider-row"><span>Frame rate</span><output id="gif-fps-out"></output></span>
+            <input type="range" id="gif-fps" min="5" max="30" step="1">
+          </label>
+          <div class="option-row">
+            <span>Width</span>
+            <select class="select select-sm" id="gif-width" aria-label="Video width">
+              <option value="480">480 px</option>
+              <option value="800">800 px</option>
+              <option value="1080">1080 px</option>
+              <option value="1920">1920 px</option>
+            </select>
+          </div>
+        </div>
+        <label class="check" id="export-transparent-row">
+          <input type="checkbox" id="export-transparent">
+          <span>Transparent background</span>
+        </label>
+        <p class="note" id="export-note"></p>
+        <button type="button" class="button button-primary" id="export-button">Download PNG</button>
+      </section>
+    </aside>
+
+    <div class="resizer resizer-sidebar" data-resize="sidebar" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" title="Drag to resize · double-click to reset"></div>
+
+    <div class="workspace">
+    <main class="stage" id="stage">
+      <canvas id="canvas"></canvas>
+      <div class="toolbar" role="toolbar" aria-label="Tools">
+        <button type="button" class="tool" data-tool="select" title="Select (V)" aria-label="Select tool">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 3l14 8.2-6.1 1.3 3.6 6.6-2.4 1.3-3.6-6.6L6 18z"/></svg>
+        </button>
+        <button type="button" class="tool" data-tool="text" title="Text (T)" aria-label="Text tool">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 6V4h14v2"/><path d="M12 4v16"/><path d="M9 20h6"/></svg>
+        </button>
+        <button type="button" class="tool" data-tool="pull" title="Pull / distort (W)" aria-label="Pull tool">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c3-1 4-4 5-7s3-6 7-6"/><path d="M13 4h4v4"/><circle cx="6" cy="18" r="2"/></svg>
+        </button>
+        <button type="button" class="tool" data-tool="brush" title="Pixel brush (B)" aria-label="Pixel brush">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="12" width="4" height="4"/><rect x="8" y="8" width="4" height="4"/><rect x="8" y="16" width="4" height="4"/><rect x="12" y="12" width="4" height="4"/><rect x="12" y="4" width="4" height="4"/><rect x="16" y="8" width="4" height="4"/></svg>
+        </button>
+        <button type="button" class="tool" data-tool="eraser" title="Eraser (E, or hold Shift)" aria-label="Eraser">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l9.6-9.6a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L11 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
+        </button>
+        <span class="toolbar-divider"></span>
+        <button type="button" class="tool tool-text" id="toolbar-animate" aria-controls="animate-panel" aria-expanded="false" title="Animate">Animate</button>
+        <span class="toolbar-divider"></span>
+        <button type="button" class="tool" id="undo" title="Undo pixels (⌘Z)" aria-label="Undo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+        </button>
+        <button type="button" class="tool" id="redo" title="Redo pixels (⇧⌘Z)" aria-label="Redo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+        </button>
+      </div>
+      <div class="status" id="status" role="status"></div>
+      <div class="canvas-hint" id="canvas-hint"></div>
+    </main>
+      <footer class="timeline" id="timeline" aria-label="Animation timeline" hidden>
+        <div class="tl-controls">
+          <button type="button" class="tool" id="tl-play" title="Play (Space)" aria-label="Play or pause">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path id="tl-play-icon" d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button type="button" class="tool" id="tl-loop" title="Loop" aria-label="Loop">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+          </button>
+          <span class="tl-time" id="tl-time">0.00 / 3.00s</span>
+          <span class="tl-divider"></span>
+          <span class="tl-spacer"></span>
+          <button type="button" class="button button-sm" id="tl-add" title="Add keyframe (K)">◆ Add keyframe</button>
+          <button type="button" class="button button-sm" id="tl-delete" title="Delete selected keyframe">Delete</button>
+          <button type="button" class="button button-sm" id="tl-clear" title="Remove all keyframes and boil">Clear all</button>
+          <div class="tl-settings-wrap">
+            <button type="button" class="tool" id="tl-settings-toggle" aria-expanded="false" aria-controls="tl-settings" title="Animation settings" aria-label="Animation settings">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+            </button>
+            <div class="tl-settings" id="tl-settings" hidden>
+              <label class="tl-field">Duration
+                <span><input type="number" id="tl-duration" min="0.5" max="30" step="0.5" value="3"> s</span>
+              </label>
+              <label class="tl-field">Speed
+                <span><input type="range" id="tl-speed" min="0.25" max="2" step="0.25" value="1"> <output id="tl-speed-out">1×</output></span>
+              </label>
+              <label class="tl-field">Easing
+                <select id="tl-easing" class="select select-sm">
+                  <option value="inOut">Ease in-out</option>
+                  <option value="linear">Linear</option>
+                  <option value="in">Ease in</option>
+                  <option value="out">Ease out</option>
+                </select>
+              </label>
+              <label class="tl-field">Font change
+                <select id="tl-transition" class="select select-sm">
+                  <option value="crossfade">Crossfade</option>
+                  <option value="dissolve">Pixel dissolve</option>
+                  <option value="cut">Cut (flash)</option>
+                </select>
+              </label>
+              <label class="slider">
+                <span class="slider-row"><span>Boil amount</span><output id="boil-out"></output></span>
+                <input type="range" id="boil" min="0" max="100" step="1">
+              </label>
+              <label class="slider">
+                <span class="slider-row"><span>Boil speed</span><output id="boilRate-out"></output></span>
+                <input type="range" id="boilRate" min="2" max="24" step="1">
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="tl-track" id="tl-track">
+          <div class="tl-ruler" id="tl-ruler"></div>
+          <div class="tl-lane" id="tl-lane">
+            <span class="tl-empty" id="tl-empty">Add a keyframe, move the playhead, then change size, position, fonts, warp or pixels — or paint. Changes are keyed automatically.</span>
+          </div>
+          <div class="tl-playhead" id="tl-playhead"></div>
+        </div>
+      </footer>
+    </div>
+
+    <div class="resizer resizer-animate" data-resize="animate" role="separator" aria-orientation="vertical" aria-label="Resize animate panel" title="Drag to resize · double-click to reset" hidden></div>
+    <aside class="animate-panel" id="animate-panel" aria-label="Animate" hidden>
+      <header class="animate-head">
+        <h2>Animate</h2>
+        <button type="button" class="icon-button" id="animate-close" aria-label="Close animate panel" title="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </header>
+      <div class="animate-body" id="animate-body"></div>
+    </aside>
+  </div>
+</body>
+</html>
