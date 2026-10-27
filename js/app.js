@@ -1,10 +1,10 @@
-import { fonts, CATEGORIES, cssFamily, registerPreviews, getFont, addCustomFont } from './fonts.js';
-import { layoutBox, hitTest, pullPoint } from './layout.js';
-import { fitView, render, handleAt, boxRect, drawArtwork } from './renderer.js';
-import { createColorPicker } from './colorpicker.js';
-import { PixelLayer } from './pixels.js';
-import { exportPNG, exportSVG, exportGIF, exportMP4, canEncodeMP4, maxScale, download } from './export.js';
-import { Timeline, createTimelineUI } from './timeline.js';
+import { fonts, CATEGORIES, cssFamily, registerPreviews, getFont, addCustomFont } from './fonts.js?v=202610271414';
+import { layoutBox, hitTest, pullPoint } from './layout.js?v=202610271414';
+import { fitView, render, handleAt, boxRect, drawArtwork } from './renderer.js?v=202610271414';
+import { createColorPicker } from './colorpicker.js?v=202610271414';
+import { PixelLayer } from './pixels.js?v=202610271414';
+import { exportPNG, exportSVG, exportGIF, exportMP4, canEncodeMP4, maxScale, download } from './export.js?v=202610271414';
+import { Timeline, createTimelineUI } from './timeline.js?v=202610271414';
 
 // Artboard size in pixels; mutable via the Canvas panel.
 const artboard = { width: 1600, height: 1000 };

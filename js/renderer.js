@@ -1,4 +1,4 @@
-import { caretX, strokeWidthOf } from './layout.js';
+import { caretX, strokeWidthOf } from './layout.js?v=202610271414';
 
 // Draws the artboard into the stage canvas. `view` maps artboard units to
 // canvas CSS pixels; later phases use its inverse for brush input.

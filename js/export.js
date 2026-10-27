@@ -8,8 +8,8 @@
 // polygons, then paper.js computes (outlines − pixelated cells) ∪ filled
 // cells, keeping the glyphs' real Bézier curves.
 
-import { drawArtwork } from './renderer.js';
-import { strokeWidthOf } from './layout.js';
+import { drawArtwork } from './renderer.js?v=202610271414';
+import { strokeWidthOf } from './layout.js?v=202610271414';
 
 // ---------- PNG ----------
 

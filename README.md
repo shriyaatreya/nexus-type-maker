@@ -46,3 +46,15 @@ Plain HTML, CSS and JavaScript modules — no build step.
 | Esc | Stop typing / deselect |
 
 Fonts are from Google Fonts under the SIL Open Font License / Apache 2.0.
+
+## Publishing updates
+
+Before committing a change, run:
+
+```bash
+sh bump-version.sh
+```
+
+It stamps a fresh version tag on the CSS, the main script and every module
+import, so phones and browsers load the new files instead of stale cached
+copies (GitHub Pages lets browsers cache files for about 10 minutes).
