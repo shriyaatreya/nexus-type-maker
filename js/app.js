@@ -41,7 +41,7 @@ function makeBox(props = {}) {
   return box;
 }
 
-const doc = { boxes: [makeBox({ text: 'Wonder', size: 360 })], activeId: 1 };
+const doc = { boxes: [makeBox({ text: 'Nexus', size: 360 })], activeId: 1 };
 
 const state = {
   fg: '#000000',
