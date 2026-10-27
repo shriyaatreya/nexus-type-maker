@@ -3,15 +3,16 @@ import { caretX, strokeWidthOf } from './layout.js';
 // Draws the artboard into the stage canvas. `view` maps artboard units to
 // canvas CSS pixels; later phases use its inverse for brush input.
 
-const PAD = 48;
+// Margin around the artboard: roomy on desktop, tight on phones.
+const padFor = (cssWidth) => (cssWidth < 600 ? 14 : 48);
 const ACCENT = '#eb0028'; // TEDx Red
 const BOX_PAD = 10; // screen px between text and selection box
 const HANDLE = 8; // screen px
 
 export function fitView(cssWidth, cssHeight, artboard) {
   const scale = Math.min(
-    (cssWidth - PAD * 2) / artboard.width,
-    (cssHeight - PAD * 2) / artboard.height,
+    (cssWidth - padFor(cssWidth) * 2) / artboard.width,
+    (cssHeight - padFor(cssWidth) * 2) / artboard.height,
   );
   return {
     scale,

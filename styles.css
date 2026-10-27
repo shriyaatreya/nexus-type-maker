@@ -1431,3 +1431,157 @@ body.is-resizing * { cursor: col-resize !important; user-select: none; }
 /* "All layers" reads as the header of the stack: a firmer line beneath it. */
 .layer-row-all + .layer-row { border-top: 1.5px solid #bdbdbd; }
 .layer-row-all .layer-name { font-weight: 500; }
+
+/* ---------- Phone layout (Canva-style) ----------
+   Canvas fills the screen, tools float on top, the sidebar's sections
+   become a bottom tab bar that opens each one as a sheet. */
+
+.phone-tabs,
+.sheet-bar,
+.phone-only { display: none; }
+
+/* Painting on a touch screen must not scroll or zoom the page. */
+.stage canvas { touch-action: none; }
+
+@media (max-width: 760px) {
+  :root { --tabbar-h: 58px; --safe-b: env(safe-area-inset-bottom, 0px); }
+
+  html, body { overscroll-behavior: none; }
+
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    height: 100dvh;
+  }
+
+  .workspace { grid-column: 1; grid-row: 1; }
+  .resizer { display: none !important; }
+  .canvas-hint { display: none; }
+
+  /* iOS zooms into fields under 16px; keep them at 16. */
+  textarea, input[type="text"], input[type="number"], input[type="search"], .select, .font-current { font-size: 16px; }
+
+  /* Bottom tab bar */
+  .phone-tabs {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    justify-content: space-around;
+    height: calc(var(--tabbar-h) + var(--safe-b));
+    padding: 4px 4px var(--safe-b);
+    border-top: 1px solid var(--line);
+    background: var(--paper);
+    z-index: 35;
+  }
+
+  .phone-tabs button {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--ink-3);
+    font: 500 10px var(--font-ui);
+    cursor: pointer;
+  }
+
+  .phone-tabs button span { white-space: nowrap; }
+  .phone-tabs button[aria-pressed="true"] { color: var(--ink); background: #f1f1f1; }
+
+  /* Sidebar → bottom sheet showing one section at a time */
+  .sidebar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--tabbar-h) + var(--safe-b));
+    max-height: 58dvh;
+    padding: 0 20px 24px;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 18px 18px 0 0;
+    background: var(--paper);
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.1);
+    z-index: 30;
+    transform: translateY(calc(100% + var(--tabbar-h) + 40px));
+    transition: transform 0.22s ease;
+  }
+
+  .sidebar.is-open { transform: none; }
+  .sidebar .brand { display: none; }
+  .sidebar .panel { display: none; padding-top: 4px; border-bottom: 0; }
+  .sidebar .panel.is-sheet { display: grid; }
+  .sidebar .panel h2 { cursor: default; font-size: 12px; }
+  .sidebar .panel h2::after { display: none; }
+
+  .sheet-bar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 34px;
+    margin: 0 -20px;
+    background: var(--paper);
+  }
+
+  .sheet-grabber { width: 38px; height: 4px; border-radius: 2px; background: #d6d6d6; }
+  #sheet-close { position: absolute; right: 10px; top: 3px; }
+
+  /* Floating tools: compact so they fit a phone width. */
+  .toolbar {
+    top: 10px;
+    max-width: calc(100vw - 16px);
+    padding: 3px;
+    gap: 0;
+  }
+
+  .tool { width: 34px; height: 34px; }
+  .tool.tool-text { width: auto; padding: 0 8px; font-size: 12px; }
+  .toolbar-divider { margin: 0 2px; }
+
+  /* Animate → its own bottom sheet; the timeline sits under the canvas. */
+  .animate-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--tabbar-h) + var(--safe-b));
+    width: auto;
+    height: 52dvh;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.1);
+    z-index: 40;
+    animation: sheet-in 0.22s ease-out;
+  }
+
+  @keyframes sheet-in {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+
+  .animate-head { padding: 12px 12px 10px 20px; }
+  .animate-body { padding: 4px 20px 24px; }
+
+  .timeline { padding: 6px 10px 10px; }
+  .tl-controls { gap: 6px 8px; }
+  .tl-time { min-width: 0; }
+  .tl-divider { display: none; }
+  .tl-track { height: 48px; }
+  .phone-only { display: inline-block; }
+  .tl-settings { right: -6px; width: min(260px, calc(100vw - 24px)); }
+}
+
+@media (max-width: 760px) {
+  /* While a sheet is up, the canvas refits into the space above it. */
+  .sidebar { max-height: 46dvh; }
+  .animate-panel { height: 46dvh; }
+  body.sheet-open .workspace { padding-bottom: 46dvh; }
+}

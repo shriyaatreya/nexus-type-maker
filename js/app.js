@@ -465,7 +465,7 @@ function addBox(x, y, size) {
   selected = true;
   relayout();
   // Select the placeholder so typing replaces it.
-  textInput.focus({ preventScroll: true });
+  focusText();
   textInput.select();
   return box;
 }
@@ -632,12 +632,18 @@ function placeCaret(e, extend) {
   const p = toArtboard(e);
   const index = hitTest(sc, p.x, p.y);
   const anchor = extend ? textInput.selectionStart : index;
-  textInput.focus({ preventScroll: true });
+  focusText();
   selectRange(anchor, index);
   return anchor;
 }
 
 canvas.addEventListener('pointerdown', (e) => {
+  // Phones: tapping the canvas tucks sheets away (Canva-style), except
+  // the Text sheet while you're typing.
+  if (isPhone()) {
+    if (openSheet && !(openSheet === 'Text' && isEditing())) closeSheet();
+    animatePanel.hidden = true;
+  }
   if (e.button !== 0) return;
   if (state.tool === 'brush') return brushDown(e);
   if (state.tool === 'pull') return pullDown(e);
@@ -1505,7 +1511,7 @@ function closeMenu() {
   const sel = fontTarget;
   fontTarget = null;
   if (sel) {
-    textInput.focus({ preventScroll: true });
+    focusText();
     textInput.setSelectionRange(sel.start, sel.end);
   }
   requestRender();
@@ -2082,6 +2088,8 @@ function buildAnimatePanel() {
 }
 
 function chooseAnimation(id) {
+  // Phones: tuck the presets sheet away so the result is visible.
+  if (isPhone()) animatePanel.hidden = true;
   // Clicking the active preset again turns it off.
   if (id === activePreset && timeline.keys.length) id = 'none';
   if (id === 'none') {
@@ -2120,6 +2128,7 @@ function setAnimatePanel(open) {
   document.querySelector('[data-resize=animate]').hidden = !open;
   $('toolbar-animate').setAttribute('aria-expanded', String(open));
   if (open) {
+    closeSheet(); // phones: one sheet at a time
     syncAnimateCards();
     syncTimeline();
   } else {
@@ -2127,8 +2136,10 @@ function setAnimatePanel(open) {
   }
 }
 
-$('toolbar-animate').addEventListener('click', () => setAnimatePanel(animatePanel.hidden));
-$('animate-close').addEventListener('click', () => setAnimatePanel(false));
+// Toggle on the timeline: on phones the presets sheet may already be tucked away.
+$('toolbar-animate').addEventListener('click', () => setAnimatePanel($('timeline').hidden));
+// Phones: the × only tucks the presets sheet away; the timeline stays.
+$('animate-close').addEventListener('click', () => (isPhone() ? (animatePanel.hidden = true) : setAnimatePanel(false)));
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !animatePanel.hidden && fontMenu.hidden && !isEditing()) setAnimatePanel(false);
 });
@@ -2420,6 +2431,77 @@ const HINTS = {
 function syncHint() {
   $('canvas-hint').textContent = HINTS[state.tool === 'brush' ? (state.eraser ? 'eraser' : 'brush') : state.tool];
 }
+
+// ---------- Phone layout ----------
+// Under 760px wide the sidebar becomes bottom sheets opened from a tab bar,
+// one section at a time (see the phone block in styles.css).
+
+const phoneQuery = matchMedia('(max-width: 760px)');
+const isPhone = () => phoneQuery.matches;
+const sidebarEl = $('sidebar');
+let openSheet = null;
+
+function showSheet(name) {
+  openSheet = name;
+  for (const panel of sidebarEl.querySelectorAll('.panel')) {
+    const match = panel.querySelector('h2').textContent.trim() === name;
+    panel.classList.toggle('is-sheet', match);
+    if (match) panel.classList.remove('is-collapsed'); // folding is a desktop thing
+  }
+  sidebarEl.classList.toggle('is-open', !!name);
+  for (const b of document.querySelectorAll('[data-sheet]')) {
+    b.setAttribute('aria-pressed', String(b.dataset.sheet === name));
+  }
+  if (name) {
+    animatePanel.hidden = true;
+    sidebarEl.scrollTop = 0;
+  }
+}
+
+function closeSheet() {
+  if (openSheet) showSheet(null);
+}
+
+for (const b of document.querySelectorAll('[data-sheet]')) {
+  b.addEventListener('click', () => (openSheet === b.dataset.sheet ? closeSheet() : showSheet(b.dataset.sheet)));
+}
+$('sheet-close').addEventListener('click', closeSheet);
+
+// Make room above whichever sheet is up so the design stays visible.
+function syncSheetSpace() {
+  document.body.classList.toggle('sheet-open', isPhone() && (!!openSheet || !animatePanel.hidden));
+}
+new MutationObserver(syncSheetSpace).observe(animatePanel, { attributes: true, attributeFilter: ['hidden'] });
+new MutationObserver(syncSheetSpace).observe(sidebarEl, { attributes: true, attributeFilter: ['class'] });
+phoneQuery.addEventListener('change', syncSheetSpace);
+
+// Start typing: on phones the field lives in the Text sheet, and a hidden
+// field can't take focus, so open that sheet first.
+function focusText() {
+  if (isPhone() && openSheet !== 'Text') showSheet('Text');
+  textInput.focus({ preventScroll: true });
+}
+
+// Typing on the canvas shows the Text sheet so you can see the field.
+textInput.addEventListener('focus', () => {
+  if (isPhone() && openSheet !== 'Text') showSheet('Text');
+});
+
+$('tl-presets').addEventListener('click', () => {
+  closeSheet();
+  animatePanel.hidden = false;
+  syncAnimateCards();
+});
+
+// Leaving phone size: drop the sheet state and restore folded sections.
+phoneQuery.addEventListener('change', () => {
+  if (isPhone()) return;
+  closeSheet();
+  for (const panel of sidebarEl.querySelectorAll('.panel')) {
+    panel.classList.remove('is-sheet');
+    panel.classList.toggle('is-collapsed', collapsedPanels.has(panel.querySelector('h2').textContent.trim()));
+  }
+});
 
 // ---------- Status toast ----------
 
