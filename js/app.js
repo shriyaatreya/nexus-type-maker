@@ -1,10 +1,10 @@
-import { fonts, CATEGORIES, cssFamily, registerPreviews, getFont, addCustomFont } from './fonts.js?v=202610271414';
-import { layoutBox, hitTest, pullPoint } from './layout.js?v=202610271414';
-import { fitView, render, handleAt, boxRect, drawArtwork } from './renderer.js?v=202610271414';
-import { createColorPicker } from './colorpicker.js?v=202610271414';
-import { PixelLayer } from './pixels.js?v=202610271414';
-import { exportPNG, exportSVG, exportGIF, exportMP4, canEncodeMP4, maxScale, download } from './export.js?v=202610271414';
-import { Timeline, createTimelineUI } from './timeline.js?v=202610271414';
+import { fonts, CATEGORIES, cssFamily, registerPreviews, getFont, addCustomFont } from './fonts.js?v=202610271417';
+import { layoutBox, hitTest, pullPoint } from './layout.js?v=202610271417';
+import { fitView, render, handleAt, boxRect, drawArtwork } from './renderer.js?v=202610271417';
+import { createColorPicker } from './colorpicker.js?v=202610271417';
+import { PixelLayer } from './pixels.js?v=202610271417';
+import { exportPNG, exportSVG, exportGIF, exportMP4, canEncodeMP4, maxScale, download } from './export.js?v=202610271417';
+import { Timeline, createTimelineUI } from './timeline.js?v=202610271417';
 
 // Artboard size in pixels; mutable via the Canvas panel.
 const artboard = { width: 1600, height: 1000 };
@@ -414,6 +414,21 @@ function applyTextEdit(box, next) {
   box.text = next;
   if (typingFont?.at === a) typingFont.at = a + inserted; // keep typing in that font
 }
+
+// Touch screens: double-tap the text field to select all of it (instead of
+// the system's single-word selection). Mouse double-click is unchanged.
+let lastFieldTap = 0;
+textInput.addEventListener('touchend', (e) => {
+  const now = performance.now();
+  if (now - lastFieldTap < 350) {
+    e.preventDefault(); // skip the native word selection
+    textInput.focus();
+    textInput.setSelectionRange(0, textInput.value.length);
+    lastFieldTap = 0;
+  } else {
+    lastFieldTap = now;
+  }
+}, { passive: false });
 
 textInput.addEventListener('input', () => {
   const box = activeBox();

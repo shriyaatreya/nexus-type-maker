@@ -17,7 +17,7 @@
 //             covers the cell center)
 // Painted cells cut the smooth outline away; filled cells draw as squares.
 
-import { drawInk } from './renderer.js?v=202610271414';
+import { drawInk } from './renderer.js?v=202610271417';
 
 const MASK_MAX = 1600; // longest side of the coverage masks, in mask px
 const SHADOW_OFFSET = 100000; // draws strokes off-canvas, keeps their blurred shadow
