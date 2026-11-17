@@ -119,7 +119,8 @@ function requestRender() {
       selected: selected && !!box,
       resizeLabel: gesture?.type === 'resize' && box ? `${box.size}px` : null,
       guides: gesture?.type === 'move' ? gesture.guides : null,
-      draft: gesture?.type === 'draw' ? gesture : null,
+      draft: gesture?.type === 'draw' || gesture?.type === 'marquee' ? gesture : null,
+      multiBounds: selected ? [...multi].map((id) => scenes.get(id)?.bounds).filter(Boolean) : [],
       mesh: state.tool === 'pull' && gesture?.type !== 'pull' ? meshFor(activeBox()) : null,
       hotHandle,
       pixels: currentPixels(),
@@ -467,6 +468,7 @@ function setActive(id) {
 }
 
 function addBox(x, y, size) {
+  multi.clear();
   const prev = activeBox();
   const box = makeBox({
     text: 'Text',
@@ -485,10 +487,62 @@ function addBox(x, y, size) {
   return box;
 }
 
+// ---------- Multi-select ----------
+// The active box is the one the sidebar edits; `multi` holds any other
+// selected boxes (marquee drag, Shift-click, ⌘A). Move, delete, duplicate
+// and nudge act on the whole selection.
+
+const multi = new Set();
+
+function selectedBoxes() {
+  if (!selected) return [];
+  const ids = new Set([doc.activeId, ...multi]);
+  return doc.boxes.filter((b) => ids.has(b.id));
+}
+
+function clearMulti() {
+  if (!multi.size) return;
+  multi.clear();
+  requestRender();
+}
+
+function selectBoxes(boxes) {
+  multi.clear();
+  if (!boxes.length) {
+    selected = false;
+    requestRender();
+    return;
+  }
+  textInput.blur();
+  setActive(boxes[boxes.length - 1].id);
+  for (const b of boxes.slice(0, -1)) multi.add(b.id);
+  selected = true;
+  requestRender();
+}
+
+// Copy boxes (with their painted pixels and pulls), offset a little, and
+// select the copies.
+function duplicateBoxes(boxes, dx = 24, dy = 24) {
+  const copies = boxes.map((b) => {
+    const copy = { ...structuredClone(b), id: nextBoxId++ };
+    copy.offsetX += dx;
+    copy.offsetY += dy;
+    doc.boxes.push(copy);
+    pixels.copyStrokes(b.id, copy.id);
+    return copy;
+  });
+  selectBoxes(copies);
+  syncHistory();
+  relayout();
+  return copies;
+}
+
 function deleteActiveBox() {
-  const box = activeBox();
-  if (!box) return;
-  doc.boxes = doc.boxes.filter((b) => b.id !== box.id);
+  const doomed = new Set(selectedBoxes().map((b) => b.id));
+  if (!doomed.size && activeBox()) doomed.add(doc.activeId);
+  if (!doomed.size) return;
+  multi.clear();
+  doc.boxes = doc.boxes.filter((b) => !doomed.has(b.id));
   doc.activeId = doc.boxes[doc.boxes.length - 1]?.id ?? null;
   selected = false;
   textInput.blur();
@@ -620,7 +674,6 @@ const SNAP = 6; // screen px
 
 function updateMove(e) {
   const s = toCanvas(e);
-  const box = gesture.box;
   let dx = (s.x - gesture.sx) / view.scale;
   let dy = (s.y - gesture.sy) / view.scale;
   const guides = { x: false, y: false };
@@ -636,8 +689,10 @@ function updateMove(e) {
     guides.y = true;
   }
   gesture.guides = guides;
-  box.offsetX = gesture.ox + dx;
-  box.offsetY = gesture.oy + dy;
+  for (const g of gesture.group) {
+    g.box.offsetX = g.ox + dx;
+    g.box.offsetY = g.oy + dy;
+  }
   relayout();
 }
 
@@ -666,6 +721,19 @@ canvas.addEventListener('pointerdown', (e) => {
   const s = toCanvas(e);
 
   if (!hit) {
+    // Select tool: drag a marquee to select several boxes (Shift adds).
+    if (state.tool === 'select') {
+      e.preventDefault();
+      canvas.setPointerCapture(e.pointerId);
+      const p = toArtboard(e);
+      const keep = e.shiftKey ? selectedBoxes() : [];
+      if (!e.shiftKey) { multi.clear(); selected = false; }
+      textInput.blur();
+      gesture = { type: 'marquee', from: p, to: p, keep };
+      requestRender();
+      return;
+    }
+    multi.clear();
     selected = false;
     textInput.blur();
     // Text tool: dragging on empty canvas draws a new text box.
@@ -688,8 +756,16 @@ canvas.addEventListener('pointerdown', (e) => {
     gesture = { type: 'resize', box: hit.box, dist: Math.max(1, Math.hypot(s.x - c.x, s.y - c.y)), size: hit.box.size };
   } else if (hit.part === 'inside' && isEditing() && wasActive) {
     gesture = { type: 'select', anchor: placeCaret(e, e.shiftKey) };
+  } else if (e.shiftKey && !isEditing()) {
+    // Shift-click: add or remove a box from the selection.
+    const inSel = selectedBoxes().some((b) => b.id === hit.box.id);
+    const rest = selectedBoxes().filter((b) => b.id !== hit.box.id);
+    selectBoxes(inSel ? rest : [...rest, hit.box]);
+    gesture = null;
   } else {
     if (!wasActive) textInput.blur();
+    // Clicking outside the current selection starts a new one.
+    if (!selectedBoxes().some((b) => b.id === hit.box.id)) multi.clear();
     setActive(hit.box.id);
     const b = scenes.get(hit.box.id).bounds;
     gesture = {
@@ -697,11 +773,10 @@ canvas.addEventListener('pointerdown', (e) => {
       box: hit.box,
       sx: s.x,
       sy: s.y,
-      ox: hit.box.offsetX,
-      oy: hit.box.offsetY,
       center: { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2 },
       shift: e.shiftKey && wasActive,
     };
+    gesture.group = [hit.box, ...doc.boxes.filter((x) => multi.has(x.id))].map((x) => ({ box: x, ox: x.offsetX, oy: x.offsetY }));
   }
 });
 
@@ -719,10 +794,20 @@ canvas.addEventListener('pointermove', (e) => {
       canvas.style.cursor = 'crosshair';
       requestRender();
       break;
+    case 'marquee':
+      gesture.to = toArtboard(e);
+      requestRender();
+      break;
     case 'pending':
       if (Math.hypot(s.x - gesture.sx, s.y - gesture.sy) > 3) {
         gesture.type = 'move';
         selected = true;
+        // Option/Alt-drag: drag out copies and leave the originals in place.
+        if (e.altKey) {
+          const copies = duplicateBoxes(gesture.group.map((g) => g.box), 0, 0);
+          gesture.box = copies[0];
+          gesture.group = copies.map((x) => ({ box: x, ox: x.offsetX, oy: x.offsetY }));
+        }
         canvas.style.cursor = 'move';
         updateMove(e);
       }
@@ -764,6 +849,20 @@ canvas.addEventListener('pointerup', (e) => {
     if (!moved && !before.pulls.some((q) => q.mesh === pull.mesh)) box.pulls = box.pulls.filter((q) => q !== pull);
     if (moved || before.points.length !== (box.pullPoints ?? []).length) logAction({ box, swap: before });
     hotHandle = null;
+  }
+  if (gesture?.type === 'marquee') {
+    const { from, to, keep } = gesture;
+    const x0 = Math.min(from.x, to.x), x1 = Math.max(from.x, to.x);
+    const y0 = Math.min(from.y, to.y), y1 = Math.max(from.y, to.y);
+    const hits = doc.boxes.filter((b) => {
+      const sc = scenes.get(b.id);
+      if (!sc) return false;
+      const r = sc.bounds;
+      return r.x1 >= x0 && r.x0 <= x1 && r.y1 >= y0 && r.y0 <= y1;
+    });
+    gesture = null;
+    selectBoxes([...keep, ...hits.filter((b) => !keep.includes(b))]);
+    return;
   }
   if (gesture?.type === 'draw') {
     const { from, to } = gesture;
@@ -1076,6 +1175,7 @@ function setTool(tool, { eraser = false } = {}) {
   state.tool = tool;
   state.eraser = tool === 'brush' && eraser;
   if (tool === 'brush' || tool === 'pull') {
+    multi.clear();
     selected = false;
     textInput.blur();
   }
@@ -1350,6 +1450,17 @@ document.addEventListener('keydown', (e) => {
   }
   if (mod || e.altKey) return;
 
+  if (mod && !e.shiftKey && e.key.toLowerCase() === 'd') {
+    e.preventDefault(); // instead of the browser's bookmark shortcut
+    const boxes = selectedBoxes().length ? selectedBoxes() : activeBox() ? [activeBox()] : [];
+    if (boxes.length) duplicateBoxes(boxes);
+    return;
+  }
+  if (mod && e.key.toLowerCase() === 'a' && (state.tool === 'text' || state.tool === 'select')) {
+    e.preventDefault();
+    selectBoxes(doc.boxes);
+    return;
+  }
   if ((e.key === 'Delete' || e.key === 'Backspace') && selected && (state.tool === 'text' || state.tool === 'select')) {
     e.preventDefault();
     deleteActiveBox();
@@ -1385,8 +1496,10 @@ document.addEventListener('keydown', (e) => {
   const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
   if (!d) return;
   e.preventDefault();
-  box.offsetX += d[0];
-  box.offsetY += d[1];
+  for (const b of selectedBoxes()) {
+    b.offsetX += d[0];
+    b.offsetY += d[1];
+  }
   relayout();
 });
 
@@ -1550,7 +1663,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (!fontMenu.hidden) closeMenu();
   else if (isEditing()) textInput.blur(); // stay selected, stop typing
-  else if (selected) selected = false;
+  else if (selected) { selected = false; multi.clear(); }
   requestRender();
 });
 
@@ -2207,6 +2320,7 @@ function fileBase() {
 }
 
 function syncExport() {
+  if (pendingShare) return; // keep the "Save to Photos" button until it's used
   const { format, transparent } = exportOptions;
   const limit = maxScale(artboard);
   // Fall back to the largest scale the browser can render for huge canvases.
@@ -2255,21 +2369,21 @@ function syncExport() {
 }
 
 for (const b of document.querySelectorAll('[data-format]')) {
-  b.addEventListener('click', () => { exportOptions.format = b.dataset.format; syncExport(); });
+  b.addEventListener('click', () => { exportOptions.format = b.dataset.format; cancelShare(); });
 }
 for (const b of document.querySelectorAll('[data-scale]')) {
-  b.addEventListener('click', () => { exportOptions.scale = Number(b.dataset.scale); syncExport(); });
+  b.addEventListener('click', () => { exportOptions.scale = Number(b.dataset.scale); cancelShare(); });
 }
 $('export-transparent').addEventListener('change', (e) => {
   exportOptions.transparent = e.target.checked;
 });
 $('gif-fps').addEventListener('input', (e) => {
   exportOptions.fps[exportOptions.format] = Number(e.target.value);
-  syncExport();
+  cancelShare();
 });
 $('gif-width').addEventListener('change', (e) => {
   exportOptions.width[exportOptions.format] = Number(e.target.value);
-  syncExport();
+  cancelShare();
 });
 
 // Render the animation frame by frame (same drawing as the canvas), then
@@ -2308,32 +2422,79 @@ async function exportAnimation(format) {
   }
 }
 
+// Phones and tablets: hand finished exports to the share sheet, whose
+// "Save Image" / "Save Video" puts them in Photos. The share sheet must open
+// straight from a tap, and exports take a moment, so the export button turns
+// into a "Save to Photos" button for a second tap.
+const touchDevice = matchMedia('(pointer: coarse)').matches;
+let pendingShare = null; // File waiting for the user's "Save" tap
+
+function canShareFile(file) {
+  return touchDevice && !!navigator.canShare?.({ files: [file] });
+}
+
+function deliver(blob, filename, label) {
+  const file = new File([blob], filename, { type: blob.type });
+  if (canShareFile(file)) {
+    pendingShare = file;
+    const where = filename.endsWith('.svg') ? 'Files' : 'Photos';
+    exportButton.textContent = `Save to ${where}`;
+    exportButton.classList.add('is-share');
+    showStatus(`${label} ready — tap “Save to ${where}”`);
+    return true;
+  }
+  download(blob, filename);
+  showStatus(`${label} downloaded`);
+  return false;
+}
+
+// Changing export settings drops a finished-but-unsaved export.
+function cancelShare() {
+  pendingShare = null;
+  exportButton.classList.remove('is-share');
+  syncExport();
+}
+
+async function sharePending() {
+  const file = pendingShare;
+  pendingShare = null;
+  exportButton.classList.remove('is-share');
+  syncExport();
+  try {
+    await navigator.share({ files: [file] });
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      download(file, file.name); // share failed: fall back to a normal download
+      showStatus('Saved as a download instead');
+    }
+  }
+}
+
 exportButton.addEventListener('click', async () => {
+  if (pendingShare) return sharePending();
   if (!art) return;
   const { format, scale, transparent } = exportOptions;
   exportButton.disabled = true;
   exportButton.textContent = 'Exporting…';
+  let waiting = false;
   try {
     const common = { artboard, art, pixels: currentPixels(), colors: state, transparent, bleed: bleedSigma() };
     if (isMotion(format)) {
       const blob = await exportAnimation(format);
-      download(blob, `${fileBase()}.${format}`);
-      showStatus(`${format.toUpperCase()} downloaded`);
+      waiting = deliver(blob, `${fileBase()}.${format}`, format.toUpperCase());
     } else if (format === 'png') {
       const dpi = canvasUnits.unit === 'in' ? canvasUnits.dpi : null;
       const blob = await exportPNG({ ...common, scale, dpi });
-      download(blob, `${fileBase()}@${scale}x.png`);
-      showStatus('PNG downloaded');
+      waiting = deliver(blob, `${fileBase()}@${scale}x.png`, 'PNG');
     } else {
       const { blob, merged } = await exportSVG({ ...common, units: canvasUnits });
-      download(blob, `${fileBase()}.svg`);
-      showStatus(merged ? 'SVG downloaded' : 'SVG downloaded (some outlines kept separate)');
+      waiting = deliver(blob, `${fileBase()}.svg`, merged ? 'SVG' : 'SVG (some outlines kept separate)');
     }
   } catch (err) {
     showStatus(err.message);
   } finally {
     exportButton.disabled = false;
-    syncExport();
+    if (!waiting) syncExport();
   }
 });
 

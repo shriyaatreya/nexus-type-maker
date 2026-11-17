@@ -1585,3 +1585,6 @@ body.is-resizing * { cursor: col-resize !important; user-select: none; }
   .animate-panel { height: 46dvh; }
   body.sheet-open .workspace { padding-bottom: 46dvh; }
 }
+
+/* Export button while a finished export waits to be saved (phones). */
+.button-primary.is-share { background: var(--brand); }

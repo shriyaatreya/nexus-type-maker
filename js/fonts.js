@@ -2,7 +2,7 @@
 // needed for vector export) and also registered as a CSS FontFace so the
 // dropdown can preview it with native text rendering.
 
-export const CATEGORIES = ['Italic serif', 'Script', 'Calligraphy', 'Serif', 'Sans & common', 'Uploaded'];
+export const CATEGORIES = ['Italic serif', 'Script', 'Calligraphy', 'Blackletter', 'Serif', 'Sans & common', 'Uploaded'];
 
 const BUILT_IN = [
   // Italic serifs — high contrast, like the reference
@@ -57,8 +57,21 @@ const BUILT_IN = [
   { id: 'engagement', name: 'Engagement', file: 'Engagement-Regular.ttf', cat: 'Calligraphy' },
   { id: 'bonheur', name: 'Bonheur Royale', file: 'BonheurRoyale-Regular.ttf', cat: 'Calligraphy' },
   { id: 'msmadi', name: 'Ms Madi', file: 'MsMadi-Regular.ttf', cat: 'Calligraphy' },
-  { id: 'unifraktur', name: 'UnifrakturMaguntia (blackletter)', file: 'UnifrakturMaguntia-Book.ttf', cat: 'Calligraphy' },
-  { id: 'pirata', name: 'Pirata One (blackletter)', file: 'PirataOne-Regular.ttf', cat: 'Calligraphy' },
+
+  // Blackletter / gothic
+  { id: 'unifraktur', name: 'UnifrakturMaguntia', file: 'UnifrakturMaguntia-Book.ttf', cat: 'Blackletter' },
+  { id: 'unifrakturcook', name: 'UnifrakturCook Bold', file: 'UnifrakturCook-Bold.ttf', cat: 'Blackletter' },
+  { id: 'pirata', name: 'Pirata One', file: 'PirataOne-Regular.ttf', cat: 'Blackletter' },
+  { id: 'grenze', name: 'Grenze Gotisch', file: 'GrenzeGotisch.ttf', cat: 'Blackletter' },
+  { id: 'newrocker', name: 'New Rocker', file: 'NewRocker-Regular.ttf', cat: 'Blackletter' },
+  { id: 'jacquard24', name: 'Jacquard 24 (pixel)', file: 'Jacquard24-Regular.ttf', cat: 'Blackletter' },
+  { id: 'jacquard12', name: 'Jacquard 12 (pixel)', file: 'Jacquard12-Regular.ttf', cat: 'Blackletter' },
+  { id: 'bastarda', name: 'Jacquarda Bastarda 9 (pixel)', file: 'JacquardaBastarda9-Regular.ttf', cat: 'Blackletter' },
+  { id: 'germania', name: 'Germania One', file: 'GermaniaOne-Regular.ttf', cat: 'Blackletter' },
+  { id: 'fruktur', name: 'Fruktur', file: 'Fruktur-Regular.ttf', cat: 'Blackletter' },
+  { id: 'texturina', name: 'Texturina', file: 'Texturina.ttf', cat: 'Blackletter' },
+  { id: 'uncial', name: 'Uncial Antiqua', file: 'UncialAntiqua-Regular.ttf', cat: 'Blackletter' },
+  { id: 'medievalsharp', name: 'MedievalSharp', file: 'MedievalSharp.ttf', cat: 'Blackletter' },
 
   // Upright serifs
   { id: 'bonum', name: 'TeX Gyre Bonum (Bookman)', file: 'texgyrebonum-regular.otf', cat: 'Serif' },
