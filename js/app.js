@@ -1,10 +1,10 @@
-import { fonts, CATEGORIES, cssFamily, registerPreviews, getFont, addCustomFont } from './fonts.js?v=202610271417';
-import { layoutBox, hitTest, pullPoint } from './layout.js?v=202610271417';
-import { fitView, render, handleAt, boxRect, drawArtwork } from './renderer.js?v=202610271417';
-import { createColorPicker } from './colorpicker.js?v=202610271417';
-import { PixelLayer } from './pixels.js?v=202610271417';
-import { exportPNG, exportSVG, exportGIF, exportMP4, canEncodeMP4, maxScale, download } from './export.js?v=202610271417';
-import { Timeline, createTimelineUI } from './timeline.js?v=202610271417';
+import { fonts, CATEGORIES, cssFamily, registerPreviews, getFont, addCustomFont } from './fonts.js?v=202611171237';
+import { layoutBox, hitTest, pullPoint } from './layout.js?v=202611171237';
+import { fitView, render, handleAt, boxRect, drawArtwork } from './renderer.js?v=202611171237';
+import { createColorPicker } from './colorpicker.js?v=202611171237';
+import { PixelLayer } from './pixels.js?v=202611171237';
+import { exportPNG, exportSVG, exportGIF, exportMP4, canEncodeMP4, maxScale, download } from './export.js?v=202611171237';
+import { Timeline, createTimelineUI } from './timeline.js?v=202611171237';
 
 // Artboard size in pixels; mutable via the Canvas panel.
 const artboard = { width: 1600, height: 1000 };
@@ -60,6 +60,10 @@ const state = {
   layers: [{ id: 1, name: 'Layer 1', shape: 'square', visible: true, pixelSize: null, pixelWeight: null }],
   activeLayer: 1, // the layer the brush paints into
   editAll: true,
+  // Pixel gradient: block size ramps from the pixel size to gradientTo.
+  gradientOn: false,
+  gradientDir: 'right',
+  gradientTo: 64,
   shiftX: 0, // slides every painted area (animatable)
   shiftY: 0,
   boil: 0, // hand-drawn jitter amount (percent)
@@ -101,6 +105,7 @@ function currentPixels() {
     layers: state.layers.map((l) => ({ ...l, ps: layerValue(l, 'pixelSize'), weight: layerValue(l, 'pixelWeight') })),
     reveal: revealOverride,
     seed: boilSeed(),
+    gradient: state.gradientOn ? { dir: state.gradientDir, to: state.gradientTo } : null,
   });
 }
 
@@ -225,6 +230,7 @@ const sliders = {
   brushSize: { format: (v) => `${v}px` },
   softness: { format: (v) => `${v}%` },
   bleed: { format: (v) => (v ? `${Math.round(v)}%` : 'Off') },
+  gradientTo: { format: (v) => `${Math.round(v)}px` },
   boil: { format: (v) => (v ? `${Math.round(v)}%` : 'Off'), layout: true },
   boilRate: { format: (v) => `${v} fps`, layout: true },
   shiftX: { format: (v) => `${Math.round(v)}` },
@@ -1272,6 +1278,30 @@ for (const b of document.querySelectorAll('[data-clip]')) {
   b.addEventListener('click', () => {
     state.clip = b.dataset.clip === 'letters'; // applies to new strokes
     syncPixelControls();
+  });
+}
+
+// ---------- Pixel gradient ----------
+
+function syncGradient() {
+  $('gradient-toggle').setAttribute('aria-checked', String(state.gradientOn));
+  $('gradient-options').hidden = !state.gradientOn;
+  for (const b of document.querySelectorAll('[data-gdir]')) {
+    b.setAttribute('aria-checked', String(b.dataset.gdir === state.gradientDir));
+  }
+}
+
+$('gradient-toggle').addEventListener('click', () => {
+  state.gradientOn = !state.gradientOn;
+  syncGradient();
+  requestRender();
+});
+
+for (const b of document.querySelectorAll('[data-gdir]')) {
+  b.addEventListener('click', () => {
+    state.gradientDir = b.dataset.gdir;
+    syncGradient();
+    requestRender();
   });
 }
 
@@ -2701,5 +2731,6 @@ syncHistory();
 setTool('text');
 syncTimeline();
 syncBoil();
+syncGradient();
 resize();
 relayout();

@@ -17,7 +17,7 @@
 //             covers the cell center)
 // Painted cells cut the smooth outline away; filled cells draw as squares.
 
-import { drawInk } from './renderer.js?v=202610271417';
+import { drawInk } from './renderer.js?v=202611171237';
 
 const MASK_MAX = 1600; // longest side of the coverage masks, in mask px
 const SHADOW_OFFSET = 100000; // draws strokes off-canvas, keeps their blurred shadow
@@ -200,6 +200,15 @@ export class PixelLayer {
     this.version++;
   }
 
+  // Duplicate a box's strokes onto another box (for ⌘D / Option-drag).
+  copyStrokes(fromBoxId, toBoxId) {
+    const copies = this.strokes().filter((st) => st.boxId === fromBoxId).map((st) => ({ ...st, boxId: toBoxId }));
+    if (!copies.length) return;
+    this.entries.push(...copies);
+    this.redoStack.length = 0;
+    this.touch();
+  }
+
   clear() {
     if (!this.hasPaint) return;
     this.entries.push({ type: 'clear' });
@@ -289,7 +298,9 @@ export class PixelLayer {
   // has its own pixel size (grid) and weight.
   // Returns { cut, cutD, fill, fillD, squaresD, shapesD } for the renderer
   // and exporters, or null when nothing is painted.
-  compute({ artboard, anchors, scene, layers, reveal = null, seed = 0 }) {
+  // `gradient` = { dir: 'right'|'left'|'down'|'up', to } ramps pixel size from
+  // each layer's size up to `to` across the painted area (null = uniform).
+  compute({ artboard, anchors, scene, layers, reveal = null, seed = 0, gradient = null }) {
     if (reveal !== this.reveal) {
       this.reveal = reveal;
       this.touch();
@@ -298,7 +309,8 @@ export class PixelLayer {
     const layerIds = layers.map((l) => l.id);
     this.ensureBase(artboard, anchors, layerIds);
 
-    const layerKey = layers.map((l) => `${l.id}:${l.shape}:${l.visible ? 1 : 0}:${l.ps}:${l.weight}`).join(',');
+    const layerKey = layers.map((l) => `${l.id}:${l.shape}:${l.visible ? 1 : 0}:${l.ps}:${l.weight}`).join(',') +
+      (gradient ? `|${gradient.dir}:${gradient.to}` : '');
     const c = this.cache;
     if (c && c.version === this.version && c.baseKey === this.baseKey &&
         c.scene === scene && c.layerKey === layerKey && c.seed === seed) {
@@ -329,7 +341,7 @@ export class PixelLayer {
     let result = null;
     const b = this.paintBounds(anchors);
     const visible = layers.filter((l) => l.visible);
-    if (b && visible.length) result = this.sample(b, artboard, visible, seed);
+    if (b && visible.length) result = this.sample(b, artboard, visible, seed, gradient);
 
     this.cache = { version: this.version, baseKey: this.baseKey, scene, layerKey, seed, result };
     return result;
@@ -341,7 +353,7 @@ export class PixelLayer {
   // Where a higher layer has paint, lower layers step aside — top wins.
   // Pixel weight: a clipped cell fills when the letters cover at least
   // `threshold` of it. Heavy = any touch fills (chunky, connected blocks).
-  sample(b, artboard, layers, seed = 0) {
+  sample(b, artboard, layers, seed = 0, gradient = null) {
     const { ms } = this;
     const W = this.letters.canvas.width;
     const H = this.letters.canvas.height;
@@ -385,6 +397,36 @@ export class PixelLayer {
         return hit / (n * n);
       };
       const higher = stack.slice(0, li);
+
+      // Pixel gradient: columns (or rows) whose cell size ramps across the
+      // painted area, so blocks grow from fine to chunky.
+      if (gradient) {
+        const coverageAt = (x, y, s) => {
+          const m = Math.max(1, Math.min(6, Math.round(s / ms / 3)));
+          let hit = 0;
+          for (let sy = 0; sy < m; sy++) {
+            for (let sx = 0; sx < m; sx++) {
+              if (at(letters, x + ((sx + 0.5) / m) * s, y + ((sy + 0.5) / m) * s) > 127) hit++;
+            }
+          }
+          return hit / (m * m);
+        };
+        for (const { x, y, s, i, j } of gradientCells(b, artboard, ps, gradient)) {
+          const cx = x + s / 2;
+          const cy = y + s / 2;
+          const t = cellNoise(i + seed * 7919 + li * 131, j + seed * 104729) * 255;
+          const inFree = at(L.free, cx, cy) > t;
+          const inClip = at(L.clipped, cx, cy) > t;
+          const painted = (inFree || inClip) && !higher.some((h) => at(h.free, cx, cy) > 127 || at(h.clipped, cx, cy) > 127);
+          if (!painted) continue;
+          cutRects.push([r3(x), r3(y), r3(x + s), r3(y + s)]);
+          if (!inFree && coverageAt(x, y, s) < threshold) continue;
+          if (L.shape === 'square') squareRects.push([r3(x), r3(y), r3(x + s), r3(y + s)]);
+          else shapesD += shapePath(L.shape, x, y, s);
+        }
+        return;
+      }
+
       const i0 = Math.max(0, Math.floor(b.x0 / ps));
       const j0 = Math.max(0, Math.floor(b.y0 / ps));
       const i1 = Math.min(Math.ceil(artboard.width / ps) - 1, Math.floor(b.x1 / ps));
@@ -426,6 +468,32 @@ export class PixelLayer {
     const squaresD = traceRectUnion(squareRects);
     const fillD = squaresD + shapesD;
     return { cut: new Path2D(cutD), cutD, fill: new Path2D(fillD), fillD, squaresD, shapesD };
+  }
+}
+
+// Cells for a pixel gradient: walk across the painted bounds in the ramp
+// direction; each column (or row) takes the size for its position, and the
+// cells inside it stack along the other axis.
+function* gradientCells(b, artboard, from, { dir, to }) {
+  const horizontal = dir === 'right' || dir === 'left';
+  const a0 = Math.max(0, horizontal ? b.x0 : b.y0);
+  const a1 = Math.min(horizontal ? artboard.width : artboard.height, horizontal ? b.x1 : b.y1);
+  const c0 = Math.max(0, horizontal ? b.y0 : b.x0);
+  const c1 = Math.min(horizontal ? artboard.height : artboard.width, horizontal ? b.y1 : b.x1);
+  const span = Math.max(1, a1 - a0);
+  const reverse = dir === 'left' || dir === 'up';
+  const sizeAt = (u) => {
+    let t = Math.min(1, Math.max(0, (u - a0) / span));
+    if (reverse) t = 1 - t;
+    return Math.max(2, from + (to - from) * t);
+  };
+  let u = a0;
+  for (let k = 0; u < a1 && k < 4000; k++) {
+    const s = sizeAt(u + 1);
+    for (let j = Math.floor(c0 / s); j * s < c1; j++) {
+      yield horizontal ? { x: u, y: j * s, s, i: k, j } : { x: j * s, y: u, s, i: j, j: k };
+    }
+    u += s;
   }
 }
 

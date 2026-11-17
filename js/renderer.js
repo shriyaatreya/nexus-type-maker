@@ -1,4 +1,4 @@
-import { caretX, strokeWidthOf } from './layout.js?v=202610271417';
+import { caretX, strokeWidthOf } from './layout.js?v=202611171237';
 
 // Draws the artboard into the stage canvas. `view` maps artboard units to
 // canvas CSS pixels; later phases use its inverse for brush input.
@@ -373,6 +373,14 @@ function drawMesh(ctx, view, dpr, { points, cols, rows }, hot) {
   }
 }
 
+function drawOutline(ctx, bounds, view, dpr) {
+  const r = boxRect(bounds, view);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.strokeStyle = ACCENT;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(Math.round(r.x) + 0.5, Math.round(r.y) + 0.5, Math.round(r.w), Math.round(r.h));
+}
+
 // Dashed rectangle while dragging out a new text box.
 function drawDraft(ctx, view, dpr, { from, to }) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -388,7 +396,7 @@ function drawDraft(ctx, view, dpr, { from, to }) {
 }
 
 export function render(ctx, state, view, dpr) {
-  const { artboard, art, scene, colors, editing, selected, resizeLabel, guides, pixels, bleed, brush, draft, mesh, hotHandle } = state;
+  const { artboard, art, scene, colors, editing, selected, resizeLabel, guides, pixels, bleed, brush, draft, mesh, hotHandle, multiBounds } = state;
   const { width, height } = ctx.canvas;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, width, height);
@@ -419,6 +427,8 @@ export function render(ctx, state, view, dpr) {
   if (guides) drawGuides(ctx, artboard, view, dpr, guides);
   if (draft) drawDraft(ctx, view, dpr, draft);
   if (mesh) drawMesh(ctx, view, dpr, mesh, hotHandle);
+  // Other selected boxes: outline only (handles stay on the active one).
+  for (const b of multiBounds ?? []) drawOutline(ctx, b, view, dpr);
   if (scene && (editing || selected)) drawSelectionBox(ctx, scene.bounds, view, dpr, resizeLabel);
   if (brush) drawBrushCursor(ctx, view, dpr, brush);
 }
