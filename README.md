@@ -58,3 +58,14 @@ sh bump-version.sh
 It stamps a fresh version tag on the CSS, the main script and every module
 import, so phones and browsers load the new files instead of stale cached
 copies (GitHub Pages lets browsers cache files for about 10 minutes).
+
+## More shortcuts
+
+| Key | Action |
+| --- | --- |
+| V / W | Select tool / Pull tool |
+| ⌘D | Duplicate selected text boxes (with their pixels) |
+| Option-drag | Drag out a copy |
+| ⌘A | Select all text boxes |
+| Shift-click | Add or remove a box from the selection |
+| Drag on empty canvas (Select tool) | Marquee-select boxes |

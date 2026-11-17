@@ -1,10 +1,10 @@
-import { fonts, CATEGORIES, cssFamily, registerPreviews, getFont, addCustomFont } from './fonts.js?v=202611171237';
-import { layoutBox, hitTest, pullPoint } from './layout.js?v=202611171237';
-import { fitView, render, handleAt, boxRect, drawArtwork } from './renderer.js?v=202611171237';
-import { createColorPicker } from './colorpicker.js?v=202611171237';
-import { PixelLayer } from './pixels.js?v=202611171237';
-import { exportPNG, exportSVG, exportGIF, exportMP4, canEncodeMP4, maxScale, download } from './export.js?v=202611171237';
-import { Timeline, createTimelineUI } from './timeline.js?v=202611171237';
+import { fonts, CATEGORIES, cssFamily, registerPreviews, getFont, addCustomFont } from './fonts.js?v=202611171241';
+import { layoutBox, hitTest, pullPoint } from './layout.js?v=202611171241';
+import { fitView, render, handleAt, boxRect, drawArtwork } from './renderer.js?v=202611171241';
+import { createColorPicker } from './colorpicker.js?v=202611171241';
+import { PixelLayer } from './pixels.js?v=202611171241';
+import { exportPNG, exportSVG, exportGIF, exportMP4, canEncodeMP4, maxScale, download } from './export.js?v=202611171241';
+import { Timeline, createTimelineUI } from './timeline.js?v=202611171241';
 
 // Artboard size in pixels; mutable via the Canvas panel.
 const artboard = { width: 1600, height: 1000 };
@@ -770,8 +770,13 @@ canvas.addEventListener('pointerdown', (e) => {
     gesture = null;
   } else {
     if (!wasActive) textInput.blur();
-    // Clicking outside the current selection starts a new one.
+    // Clicking outside the current selection starts a new one; clicking
+    // inside it keeps the whole group and makes this box the active one.
     if (!selectedBoxes().some((b) => b.id === hit.box.id)) multi.clear();
+    else if (hit.box.id !== doc.activeId) {
+      if (doc.activeId != null) multi.add(doc.activeId);
+      multi.delete(hit.box.id);
+    }
     setActive(hit.box.id);
     const b = scenes.get(hit.box.id).bounds;
     gesture = {
@@ -1478,8 +1483,6 @@ document.addEventListener('keydown', (e) => {
     redo();
     return;
   }
-  if (mod || e.altKey) return;
-
   if (mod && !e.shiftKey && e.key.toLowerCase() === 'd') {
     e.preventDefault(); // instead of the browser's bookmark shortcut
     const boxes = selectedBoxes().length ? selectedBoxes() : activeBox() ? [activeBox()] : [];
@@ -1491,6 +1494,8 @@ document.addEventListener('keydown', (e) => {
     selectBoxes(doc.boxes);
     return;
   }
+  if (mod || e.altKey) return;
+
   if ((e.key === 'Delete' || e.key === 'Backspace') && selected && (state.tool === 'text' || state.tool === 'select')) {
     e.preventDefault();
     deleteActiveBox();
@@ -2734,3 +2739,5 @@ syncBoil();
 syncGradient();
 resize();
 relayout();
+
+
